@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+
+{% block naslov %}Registracija{% endblock %}
+
+{% block sadrzaj %}
+    <h1>Registracija</h1>
+
+    <form method="post" class="forma-naloga">
+        <input type="text" name="korisnicko_ime" placeholder="Korisnicko ime" required autofocus>
+        <input type="password" name="lozinka" placeholder="Lozinka (bar 4 karaktera)" required>
+        <input type="password" name="potvrda" placeholder="Ponovi lozinku" required>
+        <button type="submit">Napravi nalog</button>
+    </form>
+
+    <p>Vec imas nalog? <a href="{{ url_for('login') }}">Prijavi se</a></p>
+{% endblock %}

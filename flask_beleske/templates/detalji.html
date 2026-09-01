@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+
+{% block naslov %}{{ beleska.naslov }}{% endblock %}
+
+{% block sadrzaj %}
+    <p><a href="{{ url_for('pocetna') }}">&larr; Nazad na sve beleske</a></p>
+
+    <h1 class="{{ 'uradjeno' if beleska.uradjeno else '' }}">{{ beleska.naslov }}</h1>
+
+    <div class="meta">
+        {% if beleska.kategorija %}<span class="bedz">{{ beleska.kategorija }}</span>{% endif %}
+        <span class="datum">{{ beleska.datum.replace("T", " ") }}</span>
+    </div>
+
+    {% if beleska.opis %}
+        <p class="opis-beleske">{{ beleska.opis }}</p>
+    {% else %}
+        <p class="prazno">Ova beleska nema opis.</p>
+    {% endif %}
+
+    <div class="akcije akcije-detalja">
+        <a href="{{ url_for('izmeni', id=beleska.id) }}" class="izmeni">Izmeni</a>
+        <form action="{{ url_for('obrisi', id=beleska.id) }}" method="post">
+            <button type="submit" class="obrisi">Obrisi</button>
+        </form>
+    </div>
+{% endblock %}

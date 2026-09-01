@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+
+{% block naslov %}Beleske{% endblock %}
+
+{% block sadrzaj %}
+    <h1>Moje beleske</h1>
+
+    <form action="{{ url_for('dodaj') }}" method="post" class="forma forma-nova-beleska">
+        <input type="text" name="naslov" placeholder="Naslov beleske..." required autofocus>
+        <textarea name="opis" placeholder="Opis (opciono)..." rows="3"></textarea>
+        <input type="text" name="kategorija" placeholder="Kategorija (opciono)" class="kategorija-unos">
+        <button type="submit">Dodaj</button>
+    </form>
+
+    {% if beleske %}
+        <input type="text" id="pretraga" class="pretraga" placeholder="Pretrazi beleske...">
+
+        <ul class="lista" id="lista-beleski">
+            {% for b in beleske %}
+                <li class="{{ 'uradjeno' if b.uradjeno else '' }}"
+                    data-tekst="{{ (b.naslov ~ ' ' ~ b.opis ~ ' ' ~ b.kategorija)|lower }}">
+                    <form action="{{ url_for('toggle', id=b.id) }}" method="post" class="toggle-forma">
+                        <input type="checkbox" onchange="this.form.submit()" {{ 'checked' if b.uradjeno else '' }}>
+                    </form>
+
+                    <span class="sadrzaj-beleske">
+                        <a href="{{ url_for('detalji', id=b.id) }}" class="naslov-beleske">{{ b.naslov }}</a>
+                        <span class="meta">
+                            {% if b.kategorija %}<span class="bedz">{{ b.kategorija }}</span>{% endif %}
+                            <span class="datum">{{ b.datum.replace("T", " ") }}</span>
+                        </span>
+                    </span>
+
+                    <span class="akcije">
+                        <a href="{{ url_for('izmeni', id=b.id) }}" class="izmeni">Izmeni</a>
+                        <form action="{{ url_for('obrisi', id=b.id) }}" method="post">
+                            <button type="submit" class="obrisi">Obrisi</button>
+                        </form>
+                    </span>
+                </li>
+            {% endfor %}
+        </ul>
+    {% else %}
+        <p class="prazno">Nema jos beleski. Dodaj prvu iznad.</p>
+    {% endif %}
+{% endblock %}

@@ -1,1 +1,4 @@
 tempCodeRunnerFile.py
+flask_beleske/data.json
+__pycache__/
+.pytest_cache/
