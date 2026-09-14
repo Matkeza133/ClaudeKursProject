@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+
+{% block naslov %}Statistika{% endblock %}
+
+{% block sadrzaj %}
+    <h1>Statistika</h1>
+
+    {% if ukupno == 0 %}
+        <p class="prazno">Nema jos beleski - dodaj par pa se vrati ovde.</p>
+    {% else %}
+        <div class="stat-kartice">
+            <div class="stat-kartica">
+                <span class="stat-broj">{{ ukupno }}</span>
+                <span class="stat-oznaka">Ukupno</span>
+            </div>
+            <div class="stat-kartica">
+                <span class="stat-broj">{{ aktivno }}</span>
+                <span class="stat-oznaka">Aktivno</span>
+            </div>
+            <div class="stat-kartica">
+                <span class="stat-broj">{{ uradjeno }}</span>
+                <span class="stat-oznaka">Urađeno</span>
+            </div>
+            <div class="stat-kartica">
+                <span class="stat-broj">{{ procenat }}%</span>
+                <span class="stat-oznaka">Završenost</span>
+            </div>
+        </div>
+
+        <div class="panel stat-panel">
+            <p class="panel-naslov">Završenost</p>
+            <div class="donut-red">
+                <svg class="donut" viewBox="0 0 120 120">
+                    <circle class="donut-pozadina" cx="60" cy="60" r="54"></circle>
+                    <circle
+                        class="donut-ispuna"
+                        cx="60" cy="60" r="54"
+                        stroke-dasharray="{{ obim_kruga }}"
+                        stroke-dashoffset="{{ obim_kruga - (obim_kruga * procenat / 100) }}"
+                    ></circle>
+                    <text x="60" y="66" class="donut-tekst">{{ procenat }}%</text>
+                </svg>
+                <div class="donut-legenda">
+                    <div class="legenda-stavka">
+                        <span class="legenda-tacka legenda-tacka-uradjeno"></span>
+                        Urađeno ({{ uradjeno }})
+                    </div>
+                    <div class="legenda-stavka">
+                        <span class="legenda-tacka legenda-tacka-aktivno"></span>
+                        Aktivno ({{ aktivno }})
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        {% if kategorije %}
+            <div class="panel stat-panel">
+                <p class="panel-naslov">Po kategoriji</p>
+                <div class="trakasti-grafik">
+                    {% for k in kategorije %}
+                        <div class="trakasti-red">
+                            <span class="trakasti-oznaka">{{ k.naziv }}</span>
+                            <div class="trakasti-pozadina">
+                                <div class="trakasti-ispuna" style="width: {{ k.procenat }}%"></div>
+                            </div>
+                            <span class="trakasti-broj">{{ k.broj }}</span>
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+        {% endif %}
+
+        <div class="panel stat-panel">
+            <p class="panel-naslov">Dodate beleske (poslednjih 14 dana)</p>
+            <div class="stubicasti-grafik">
+                {% for d in po_danu %}
+                    <div class="stubic-kolona" title="{{ d.oznaka }}: {{ d.broj }}">
+                        <div class="stubic" style="height: {{ d.procenat if d.broj else 3 }}%"></div>
+                        <span class="stubic-oznaka">{{ d.oznaka }}</span>
+                    </div>
+                {% endfor %}
+            </div>
+        </div>
+    {% endif %}
+{% endblock %}

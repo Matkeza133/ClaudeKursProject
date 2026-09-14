@@ -1,3 +1,7 @@
 flask
 flask-login
 pytest
+anthropic
+markdown
+bleach
+gunicorn

@@ -3,14 +3,25 @@
 {% block naslov %}Registracija{% endblock %}
 
 {% block sadrzaj %}
-    <h1>Registracija</h1>
+    <div class="auth-omot">
+        <span class="auth-znak">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="8" r="4"></circle>
+                <path d="M4 21c0-4 3.5-7 8-7s8 3 8 7"></path>
+            </svg>
+        </span>
+        <h1>Registracija</h1>
+        <p class="auth-podnaslov">Napravite nalog za cuvanje beleski</p>
 
-    <form method="post" class="forma-naloga">
-        <input type="text" name="korisnicko_ime" placeholder="Korisnicko ime" required autofocus>
-        <input type="password" name="lozinka" placeholder="Lozinka (bar 4 karaktera)" required>
-        <input type="password" name="potvrda" placeholder="Ponovi lozinku" required>
-        <button type="submit">Napravi nalog</button>
-    </form>
+        <div class="auth-karta">
+            <form method="post" class="forma-naloga">
+                <input type="text" name="korisnicko_ime" placeholder="Korisnicko ime" required autofocus>
+                <input type="password" name="lozinka" placeholder="Lozinka (bar 4 karaktera)" required>
+                <input type="password" name="potvrda" placeholder="Ponovi lozinku" required>
+                <button type="submit">Napravi nalog</button>
+            </form>
+        </div>
 
-    <p>Vec imas nalog? <a href="{{ url_for('login') }}">Prijavi se</a></p>
+        <p class="auth-prekid">Vec imas nalog? <a href="{{ url_for('login') }}">Prijavi se</a></p>
+    </div>
 {% endblock %}

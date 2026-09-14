@@ -5,22 +5,61 @@
 {% block sadrzaj %}
     <h1>Moje beleske</h1>
 
-    <form action="{{ url_for('dodaj') }}" method="post" class="forma forma-nova-beleska">
-        <input type="text" name="naslov" placeholder="Naslov beleske..." required autofocus>
-        <textarea name="opis" placeholder="Opis (opciono)..." rows="3"></textarea>
-        <input type="text" name="kategorija" placeholder="Kategorija (opciono)" class="kategorija-unos">
-        <button type="submit">Dodaj</button>
-    </form>
+    <div class="panel">
+        <p class="panel-naslov">Nova beleska</p>
+        <form action="{{ url_for('dodaj') }}" method="post" class="forma forma-nova-beleska">
+            <input type="text" name="naslov" placeholder="Naslov beleske..." required autofocus>
+            <textarea name="opis" placeholder="Opis (opciono) - podrzava Markdown: **bold**, *kurziv*, liste..." rows="3"></textarea>
+            <div class="forma-red">
+                <input type="text" name="kategorija" placeholder="Kategorija (opciono)" class="kategorija-unos">
+                <input type="datetime-local" name="rok" class="rok-unos" title="Rok (opciono)">
+            </div>
+            <button type="submit">Dodaj</button>
+        </form>
+    </div>
 
     {% if beleske %}
-        <input type="text" id="pretraga" class="pretraga" placeholder="Pretrazi beleske...">
+        <div class="progres-blok">
+            <div class="progres-tekst">
+                <span id="progres-tekst-vrednost">{{ broj_uradjeno }} od {{ broj_ukupno }} urađeno</span>
+            </div>
+            <div class="progres-traka">
+                <div class="progres-ispuna" id="progres-ispuna" style="width: {{ procenat_uradjeno }}%"></div>
+            </div>
+        </div>
+
+        <div class="tabovi" id="tabovi-status">
+            <button type="button" class="tab aktivan" data-vrednost="sve">Sve</button>
+            <button type="button" class="tab" data-vrednost="aktivna">Aktivne</button>
+            <button type="button" class="tab" data-vrednost="uradjeno">Urađeno</button>
+        </div>
+
+        {% if kategorije %}
+            <div class="tabovi tabovi-kategorije" id="tabovi-kategorije">
+                <button type="button" class="tab aktivan" data-vrednost="sve">Sve kategorije</button>
+                {% for k in kategorije %}
+                    <button type="button" class="tab" data-vrednost="{{ k|lower }}">{{ k }}</button>
+                {% endfor %}
+            </div>
+        {% endif %}
+
+        <div class="pretraga-wrap">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="11" cy="11" r="7"></circle>
+                <path d="m21 21-4.3-4.3"></path>
+            </svg>
+            <input type="text" id="pretraga" class="pretraga" placeholder="Pretrazi beleske...">
+        </div>
 
         <ul class="lista" id="lista-beleski">
             {% for b in beleske %}
                 <li class="{{ 'uradjeno' if b.uradjeno else '' }}"
+                    data-id="{{ b.id }}"
+                    data-status="{{ 'uradjeno' if b.uradjeno else 'aktivna' }}"
+                    data-kategorija="{{ b.kategorija|lower }}"
                     data-tekst="{{ (b.naslov ~ ' ' ~ b.opis ~ ' ' ~ b.kategorija)|lower }}">
                     <form action="{{ url_for('toggle', id=b.id) }}" method="post" class="toggle-forma">
-                        <input type="checkbox" onchange="this.form.submit()" {{ 'checked' if b.uradjeno else '' }}>
+                        <input type="checkbox" {{ 'checked' if b.uradjeno else '' }}>
                     </form>
 
                     <span class="sadrzaj-beleske">
@@ -28,18 +67,23 @@
                         <span class="meta">
                             {% if b.kategorija %}<span class="bedz">{{ b.kategorija }}</span>{% endif %}
                             <span class="datum">{{ b.datum.replace("T", " ") }}</span>
+                            {% if b.rok %}
+                                <span class="rok-bedz {{ 'hitno' if not b.uradjeno and b.rok < sada else '' }}">Rok: {{ b.rok.replace("T", " ") }}</span>
+                            {% endif %}
                         </span>
                     </span>
 
                     <span class="akcije">
                         <a href="{{ url_for('izmeni', id=b.id) }}" class="izmeni">Izmeni</a>
-                        <form action="{{ url_for('obrisi', id=b.id) }}" method="post">
+                        <form action="{{ url_for('obrisi', id=b.id) }}" method="post" class="obrisi-forma">
                             <button type="submit" class="obrisi">Obrisi</button>
                         </form>
                     </span>
                 </li>
             {% endfor %}
         </ul>
+
+        <p class="prazno" id="nema-rezultata" style="display:none">Nema beleski za ovaj filter.</p>
     {% else %}
         <p class="prazno">Nema jos beleski. Dodaj prvu iznad.</p>
     {% endif %}

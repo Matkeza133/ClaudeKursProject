@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+
+{% block naslov %}Board{% endblock %}
+
+{% block sadrzaj %}
+    <h1>Board</h1>
+    <p class="asistent-podnaslov">Prevuci belesku izmedju kolona da promenis kategoriju.</p>
+
+    <div class="board-red" id="board-red">
+        {% for k in kolone %}
+            <div class="board-kolona" data-kategorija="{{ '' if k == 'Bez kategorije' else k }}">
+                <div class="board-kolona-naslov">
+                    <span>{{ k }}</span>
+                    <span class="board-broj-bedz">{{ grupisano[k]|length }}</span>
+                </div>
+                <div class="board-kartice">
+                    {% for b in grupisano[k] %}
+                        <div class="board-kartica {{ 'uradjeno' if b.uradjeno else '' }}" draggable="true" data-id="{{ b.id }}">
+                            <div class="board-kartica-gornji-red">
+                                <input type="checkbox" class="board-checkbox" {{ 'checked' if b.uradjeno else '' }}>
+                                <a href="{{ url_for('detalji', id=b.id) }}" class="board-kartica-naslov">{{ b.naslov }}</a>
+                                <button type="button" class="board-obrisi" aria-label="Obrisi" title="Obrisi">&times;</button>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+        {% endfor %}
+
+        <div class="board-kolona board-kolona-nova">
+            <form id="nova-kolona-forma" class="nova-kolona-forma">
+                <input type="text" name="naziv" placeholder="Nova kategorija..." maxlength="40" required>
+                <button type="submit">+ Dodaj kolonu</button>
+            </form>
+        </div>
+    </div>
+{% endblock %}

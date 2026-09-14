@@ -5,12 +5,17 @@
 {% block sadrzaj %}
     <h1>Izmeni belesku</h1>
 
-    <form action="{{ url_for('izmeni', id=beleska.id) }}" method="post" class="forma forma-nova-beleska">
-        <input type="text" name="naslov" value="{{ beleska.naslov }}" required autofocus>
-        <textarea name="opis" rows="3" placeholder="Opis (opciono)...">{{ beleska.opis }}</textarea>
-        <input type="text" name="kategorija" value="{{ beleska.kategorija }}" placeholder="Kategorija (opciono)" class="kategorija-unos">
-        <button type="submit">Sacuvaj</button>
-    </form>
+    <div class="panel">
+        <form action="{{ url_for('izmeni', id=beleska.id) }}" method="post" class="forma forma-nova-beleska">
+            <input type="text" name="naslov" value="{{ beleska.naslov }}" required autofocus>
+            <textarea name="opis" rows="3" placeholder="Opis (opciono) - podrzava Markdown: **bold**, *kurziv*, liste...">{{ beleska.opis }}</textarea>
+            <div class="forma-red">
+                <input type="text" name="kategorija" value="{{ beleska.kategorija }}" placeholder="Kategorija (opciono)" class="kategorija-unos">
+                <input type="datetime-local" name="rok" class="rok-unos" value="{{ beleska.rok or '' }}" title="Rok (opciono)">
+            </div>
+            <button type="submit">Sacuvaj</button>
+        </form>
+    </div>
 
-    <p><a href="{{ url_for('pocetna') }}">Nazad na sve beleske</a></p>
+    <a href="{{ url_for('pocetna') }}" class="nazad">&larr; Nazad na sve beleske</a>
 {% endblock %}

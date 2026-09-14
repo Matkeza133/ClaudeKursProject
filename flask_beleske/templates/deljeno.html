@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+
+{% block naslov %}{{ beleska.naslov }} (deljeno){% endblock %}
+
+{% block sadrzaj %}
+    <div class="panel">
+        <p class="deljeno-oznaka">Podeljena beleska od <strong>{{ autor }}</strong></p>
+
+        <h1 class="{{ 'uradjeno' if beleska.uradjeno else '' }}">{{ beleska.naslov }}</h1>
+
+        <div class="meta">
+            {% if beleska.kategorija %}<span class="bedz">{{ beleska.kategorija }}</span>{% endif %}
+            <span class="datum">{{ beleska.datum.replace("T", " ") }}</span>
+        </div>
+
+        {% if opis_html %}
+            <div class="opis-beleske markdown-sadrzaj">{{ opis_html|safe }}</div>
+        {% else %}
+            <p class="prazno">Ova beleska nema opis.</p>
+        {% endif %}
+    </div>
+{% endblock %}
