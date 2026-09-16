@@ -13,6 +13,15 @@
                 <input type="text" name="kategorija" value="{{ beleska.kategorija }}" placeholder="Kategorija (opciono)" class="kategorija-unos">
                 <input type="datetime-local" name="rok" class="rok-unos" value="{{ beleska.rok or '' }}" title="Rok (opciono)">
             </div>
+            <div class="forma-red">
+                <input type="text" name="tagovi" value="{{ (beleska.tagovi|default([]))|join(', ') }}" placeholder="Tagovi, odvojeni zarezom (opciono)" class="tagovi-unos">
+                <select name="ponavljanje" class="ponavljanje-izbor" title="Ponavljanje (opciono)">
+                    <option value="" {{ 'selected' if not beleska.ponavljanje else '' }}>Ne ponavlja se</option>
+                    <option value="dnevno" {{ 'selected' if beleska.ponavljanje == 'dnevno' else '' }}>Dnevno</option>
+                    <option value="nedeljno" {{ 'selected' if beleska.ponavljanje == 'nedeljno' else '' }}>Nedeljno</option>
+                    <option value="mesecno" {{ 'selected' if beleska.ponavljanje == 'mesecno' else '' }}>Mesecno</option>
+                </select>
+            </div>
             <button type="submit">Sacuvaj</button>
         </form>
     </div>

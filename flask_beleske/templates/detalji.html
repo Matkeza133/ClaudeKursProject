@@ -9,7 +9,9 @@
         <h1 class="{{ 'uradjeno' if beleska.uradjeno else '' }}">{{ beleska.naslov }}</h1>
 
         <div class="meta">
+            {% if not je_vlasnik|default(true) %}<span class="bedz bedz-deljeno">Deljeno od {{ beleska.korisnicko_ime }}</span>{% endif %}
             {% if beleska.kategorija %}<span class="bedz">{{ beleska.kategorija }}</span>{% endif %}
+            {% for t in beleska.tagovi|default([]) %}<span class="bedz bedz-tag">#{{ t }}</span>{% endfor %}
             <span class="datum">{{ beleska.datum.replace("T", " ") }}</span>
             {% if beleska.rok %}
                 <span class="rok-bedz {{ 'hitno' if not beleska.uradjeno and beleska.rok < sada else '' }}">Rok: {{ beleska.rok.replace("T", " ") }}</span>
@@ -22,29 +24,79 @@
             <p class="prazno">Ova beleska nema opis.</p>
         {% endif %}
 
-        <div class="akcije akcije-detalja">
-            <a href="{{ url_for('izmeni', id=beleska.id) }}" class="izmeni">Izmeni</a>
-            <form action="{{ url_for('obrisi', id=beleska.id) }}" method="post">
-                <button type="submit" class="obrisi">Obrisi</button>
+        <div class="podzadaci-blok" id="podzadaci-blok" data-beleska-id="{{ beleska.id }}">
+            <p class="panel-naslov">Podzadaci</p>
+            <ul class="podzadaci-lista" id="podzadaci-lista">
+                {% for p in podzadaci %}
+                    <li class="podzadatak-red {{ 'uradjeno' if p.uradjeno else '' }}" data-id="{{ p.id }}">
+                        <input type="checkbox" class="podzadatak-checkbox" {{ 'checked' if p.uradjeno else '' }}>
+                        <span class="podzadatak-tekst">{{ p.tekst }}</span>
+                        <button type="button" class="podzadatak-obrisi" title="Obrisi podzadatak">&times;</button>
+                    </li>
+                {% endfor %}
+            </ul>
+            <form id="podzadatak-forma" class="forma-podzadatak">
+                <input type="text" name="tekst" placeholder="Novi podzadatak..." class="podzadatak-unos">
+                <button type="submit">Dodaj</button>
             </form>
         </div>
 
-        <div class="deljenje-blok">
-            {% if beleska.deljenje_id %}
-                <p class="deljenje-status">Javno dostupna preko linka:</p>
-                <div class="deljenje-link-red">
-                    <input type="text" readonly class="deljenje-link" id="deljenje-link"
-                           value="{{ url_for('deljena_beleska', token=beleska.deljenje_id, _external=True) }}">
-                    <button type="button" class="deljenje-kopiraj" id="deljenje-kopiraj-dugme">Kopiraj</button>
-                </div>
-                <form action="{{ url_for('deljenje', id=beleska.id) }}" method="post">
-                    <button type="submit" class="obrisi">Prestani sa deljenjem</button>
-                </form>
-            {% else %}
-                <form action="{{ url_for('deljenje', id=beleska.id) }}" method="post">
-                    <button type="submit" class="izmeni">Podeli javno</button>
+        {% if saradnici is not none %}
+            <div class="saradnici-blok">
+                <p class="panel-naslov">Saradnici</p>
+                {% if saradnici %}
+                    <ul class="saradnici-lista">
+                        {% for s in saradnici %}
+                            <li>
+                                <span>{{ s }}</span>
+                                {% if je_vlasnik %}
+                                    <form action="{{ url_for('ukloni_saradnika_ruta', id=beleska.id, ime=s) }}" method="post">
+                                        <button type="submit" class="saradnik-ukloni" title="Ukloni saradnika">&times;</button>
+                                    </form>
+                                {% endif %}
+                            </li>
+                        {% endfor %}
+                    </ul>
+                {% else %}
+                    <p class="prazno">Jos nema saradnika na ovoj belesci.</p>
+                {% endif %}
+                {% if je_vlasnik %}
+                    <form action="{{ url_for('dodaj_saradnika_ruta', id=beleska.id) }}" method="post" class="forma-saradnik">
+                        <input type="text" name="korisnicko_ime" placeholder="Korisnicko ime..." required>
+                        <button type="submit">Dodaj saradnika</button>
+                    </form>
+                {% endif %}
+            </div>
+        {% endif %}
+
+        <div class="akcije akcije-detalja">
+            <a href="{{ url_for('izmeni', id=beleska.id) }}" class="izmeni">Izmeni</a>
+            <a href="{{ url_for('istorija', id=beleska.id) }}" class="izmeni">Istorija izmena</a>
+            {% if je_vlasnik|default(true) %}
+                <form action="{{ url_for('obrisi', id=beleska.id) }}" method="post">
+                    <button type="submit" class="obrisi">Obrisi</button>
                 </form>
             {% endif %}
         </div>
+
+        {% if je_vlasnik|default(true) %}
+            <div class="deljenje-blok">
+                {% if beleska.deljenje_id %}
+                    <p class="deljenje-status">Javno dostupna preko linka:</p>
+                    <div class="deljenje-link-red">
+                        <input type="text" readonly class="deljenje-link" id="deljenje-link"
+                               value="{{ url_for('deljena_beleska', token=beleska.deljenje_id, _external=True) }}">
+                        <button type="button" class="deljenje-kopiraj" id="deljenje-kopiraj-dugme">Kopiraj</button>
+                    </div>
+                    <form action="{{ url_for('deljenje', id=beleska.id) }}" method="post">
+                        <button type="submit" class="obrisi">Prestani sa deljenjem</button>
+                    </form>
+                {% else %}
+                    <form action="{{ url_for('deljenje', id=beleska.id) }}" method="post">
+                        <button type="submit" class="izmeni">Podeli javno</button>
+                    </form>
+                {% endif %}
+            </div>
+        {% endif %}
     </div>
 {% endblock %}

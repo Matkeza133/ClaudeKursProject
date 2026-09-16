@@ -5,14 +5,19 @@
 # konekcije (kao "while true do" petlja koja ceka input), a Flask
 # to radi umesto nas - mi samo pisemo "sta se desi kad neko otvori X putanju".
 
+import calendar
+import json
 import math
 import os
+import threading
+import time
 from datetime import datetime, timedelta
 
 import anthropic
 import bleach
 import markdown
 from flask import Flask, render_template, request, redirect, url_for, flash, jsonify
+from pywebpush import webpush, WebPushException
 from flask_login import (
     LoginManager,
     UserMixin,
@@ -67,10 +72,42 @@ def opis_u_html(opis):
     return bleach.clean(html, tags=DOZVOLJENI_MARKDOWN_TAGOVI, attributes=DOZVOLJENI_MARKDOWN_ATRIBUTI, strip=True)
 
 
+def parsiraj_tagove(sirovo):
+    # "hitno, posao, hitno" -> ["hitno", "posao"] - bez JS tokenizera (isti
+    # duh kao polje za kategoriju), duplikati izbaceni uz cuvanje redosleda.
+    vidjeni = []
+    for deo in sirovo.split(","):
+        tag = deo.strip()
+        if tag and tag not in vidjeni:
+            vidjeni.append(tag)
+    return vidjeni
+
+
+PONAVLJANJA = {"dnevno", "nedeljno", "mesecno"}
+SRPSKI_MESECI = [
+    "Januar", "Februar", "Mart", "April", "Maj", "Jun",
+    "Jul", "Avgust", "Septembar", "Oktobar", "Novembar", "Decembar",
+]
+
+
+def parsiraj_ponavljanje(sirovo):
+    sirovo = (sirovo or "").strip().lower()
+    return sirovo if sirovo in PONAVLJANJA else None
+
+
 def zeli_json():
     # app.js salje ovaj header uz fetch() pozive, da server zna da vrati
     # JSON (za AJAX azuriranje bez reload-a) umesto klasicnog redirect-a.
     return request.headers.get("X-Requested-With") == "XMLHttpRequest"
+
+
+def nadji_dostupnu_belesku(id_):
+    # Vraca belesku i za vlasnika i za saradnika (Faza 3), a na starom
+    # podaci_json.py (koji saradnju ne podrzava) pada nazad na strogo
+    # vlasnistvo - "ZAMRZNUTO" backend i dalje radi, samo bez ove funkcije.
+    if hasattr(podaci, "nadji_belesku_sa_pristupom"):
+        return podaci.nadji_belesku_sa_pristupom(current_user.id, id_)
+    return podaci.nadji_belesku(current_user.id, id_)
 
 
 # ---------- Flask-Login: ko je "User" u nasem sistemu ----------
@@ -143,12 +180,18 @@ def logout():
 @app.route("/")
 @login_required
 def pocetna():
-    beleske = podaci.sve_beleske(current_user.id)  # vec sortirano, najnovije prvo
+    # beleske_dostupne (vlasnistvo + deljeno) zamenjuje sve_beleske - na
+    # starom JSON backendu (ZAMRZNUT, saradnju ne podrzava) pada nazad.
+    if hasattr(podaci, "beleske_dostupne"):
+        beleske = podaci.beleske_dostupne(current_user.id)
+    else:
+        beleske = podaci.sve_beleske(current_user.id)  # vec sortirano, najnovije prvo
 
     broj_ukupno = len(beleske)
     broj_uradjeno = sum(1 for b in beleske if b["uradjeno"])
     procenat_uradjeno = round(broj_uradjeno / broj_ukupno * 100) if broj_ukupno else 0
     kategorije = sorted({b["kategorija"] for b in beleske if b["kategorija"]})
+    tagovi = podaci.sve_tagove_korisnika(current_user.id) if hasattr(podaci, "sve_tagove_korisnika") else []
     sada = datetime.now().isoformat(timespec="minutes")
 
     return render_template(
@@ -158,6 +201,7 @@ def pocetna():
         broj_uradjeno=broj_uradjeno,
         procenat_uradjeno=procenat_uradjeno,
         kategorije=kategorije,
+        tagovi=tagovi,
         sada=sada,
     )
 
@@ -169,30 +213,47 @@ def dodaj():
     opis = request.form.get("opis", "").strip()
     kategorija = request.form.get("kategorija", "").strip()
     rok = request.form.get("rok", "").strip() or None
+    tagovi = parsiraj_tagove(request.form.get("tagovi", ""))
+    ponavljanje = parsiraj_ponavljanje(request.form.get("ponavljanje", ""))
 
     if not naslov:
         flash("Naslov ne moze biti prazan.", "greska")
         return redirect(url_for("pocetna"))
 
-    podaci.dodaj_belesku(current_user.id, naslov, opis, kategorija, rok)
+    nova = podaci.dodaj_belesku(current_user.id, naslov, opis, kategorija, rok, ponavljanje)
+    if hasattr(podaci, "postavi_tagove"):
+        podaci.postavi_tagove(current_user.id, nova["id"], tagovi)
     return redirect(url_for("pocetna"))
 
 
 @app.route("/beleska/<int:id>")
 @login_required
 def detalji(id):
-    beleska = podaci.nadji_belesku(current_user.id, id)
+    beleska = nadji_dostupnu_belesku(id)
 
     if beleska is None:
         return redirect(url_for("pocetna"))
 
     sada = datetime.now().isoformat(timespec="minutes")
-    return render_template("detalji.html", beleska=beleska, opis_html=opis_u_html(beleska["opis"]), sada=sada)
+    podzadaci = podaci.podzadaci_za_belesku(id) if hasattr(podaci, "podzadaci_za_belesku") else []
+    saradnici = podaci.saradnici_za(id) if hasattr(podaci, "saradnici_za") else None
+    je_vlasnik = beleska["korisnicko_ime"] == current_user.id
+    return render_template(
+        "detalji.html", beleska=beleska, opis_html=opis_u_html(beleska["opis"]), sada=sada,
+        podzadaci=podzadaci, saradnici=saradnici, je_vlasnik=je_vlasnik,
+    )
 
 
 @app.route("/beleska/<int:id>/deljenje", methods=["POST"])
 @login_required
 def deljenje(id):
+    beleska = nadji_dostupnu_belesku(id)
+    if beleska is None:
+        return redirect(url_for("pocetna"))
+    if beleska["korisnicko_ime"] != current_user.id:
+        flash("Samo vlasnik moze da javno deli ovu belesku.", "greska")
+        return redirect(url_for("detalji", id=id))
+
     # Toggle: prvi klik napravi javni link (nasumican token), drugi ga ugasi.
     podaci.postavi_deljenje(current_user.id, id)
     return redirect(url_for("detalji", id=id))
@@ -217,7 +278,7 @@ def deljena_beleska(token):
 @app.route("/izmeni/<int:id>", methods=["GET", "POST"])
 @login_required
 def izmeni(id):
-    beleska = podaci.nadji_belesku(current_user.id, id)
+    beleska = nadji_dostupnu_belesku(id)
 
     if beleska is None:
         return redirect(url_for("pocetna"))
@@ -231,7 +292,19 @@ def izmeni(id):
         novi_opis = request.form.get("opis", "").strip()
         nova_kategorija = request.form.get("kategorija", "").strip()
         novi_rok = request.form.get("rok", "").strip() or None
-        podaci.izmeni_belesku(current_user.id, id, novi_naslov, novi_opis, nova_kategorija, novi_rok)
+        novi_tagovi = parsiraj_tagove(request.form.get("tagovi", ""))
+        novo_ponavljanje = parsiraj_ponavljanje(request.form.get("ponavljanje", ""))
+        # Vlasnik moze biti drugaciji od trenutnog korisnika (saradnik menja
+        # tudju belesku) - mutation pozivi idu na PRAVOG vlasnika, editor je
+        # ko je stvarno kliknuo "Sacuvaj" (za istoriju izmena; podaci_json.py
+        # prima editor ali ga ignorise - istorija je sqlite-only feature).
+        vlasnik = beleska["korisnicko_ime"]
+        podaci.izmeni_belesku(
+            vlasnik, id, novi_naslov, novi_opis, nova_kategorija, novi_rok, novo_ponavljanje,
+            editor=current_user.id,
+        )
+        if hasattr(podaci, "postavi_tagove"):
+            podaci.postavi_tagove(vlasnik, id, novi_tagovi)
         return redirect(url_for("detalji", id=id))
 
     return render_template("izmeni.html", beleska=beleska)
@@ -240,7 +313,13 @@ def izmeni(id):
 @app.route("/toggle/<int:id>", methods=["POST"])
 @login_required
 def toggle(id):
-    novi_status = podaci.toggle_belesku(current_user.id, id)
+    beleska = nadji_dostupnu_belesku(id)
+    if beleska is None:
+        if zeli_json():
+            return jsonify({"greska": "Beleska ne postoji."}), 404
+        return redirect(url_for("pocetna"))
+
+    novi_status = podaci.toggle_belesku(beleska["korisnicko_ime"], id)
 
     if zeli_json():
         return jsonify({"uradjeno": novi_status})
@@ -250,6 +329,17 @@ def toggle(id):
 @app.route("/obrisi/<int:id>", methods=["POST"])
 @login_required
 def obrisi(id):
+    beleska = nadji_dostupnu_belesku(id)
+    if beleska is None:
+        if zeli_json():
+            return jsonify({}), 404
+        return redirect(url_for("pocetna"))
+    if beleska["korisnicko_ime"] != current_user.id:
+        if zeli_json():
+            return jsonify({"greska": "Samo vlasnik moze da obrise belesku."}), 403
+        flash("Samo vlasnik moze da obrise ovu belesku.", "greska")
+        return redirect(url_for("detalji", id=id))
+
     obrisana = podaci.obrisi_belesku(current_user.id, id)
 
     if zeli_json():
@@ -269,6 +359,103 @@ def vrati():
 
     podaci.vrati_belesku(current_user.id, telo)
     return jsonify({"ok": True})
+
+
+# ---------- Saradnja: saradnici + istorija izmena ----------
+
+@app.route("/beleska/<int:id>/saradnici", methods=["POST"])
+@login_required
+def dodaj_saradnika_ruta(id):
+    beleska = nadji_dostupnu_belesku(id)
+    if beleska is None:
+        return redirect(url_for("pocetna"))
+    if beleska["korisnicko_ime"] != current_user.id:
+        flash("Samo vlasnik moze da upravlja saradnicima.", "greska")
+        return redirect(url_for("detalji", id=id))
+
+    ime_saradnika = request.form.get("korisnicko_ime", "").strip()
+    if not podaci.korisnik_postoji(ime_saradnika):
+        flash("Taj korisnik ne postoji.", "greska")
+    elif ime_saradnika == current_user.id:
+        flash("Ne mozes dodati sebe kao saradnika.", "greska")
+    else:
+        podaci.dodaj_saradnika(current_user.id, id, ime_saradnika)
+    return redirect(url_for("detalji", id=id))
+
+
+@app.route("/beleska/<int:id>/saradnici/<ime>/ukloni", methods=["POST"])
+@login_required
+def ukloni_saradnika_ruta(id, ime):
+    beleska = nadji_dostupnu_belesku(id)
+    if beleska is None:
+        return redirect(url_for("pocetna"))
+    if beleska["korisnicko_ime"] != current_user.id:
+        flash("Samo vlasnik moze da upravlja saradnicima.", "greska")
+        return redirect(url_for("detalji", id=id))
+
+    podaci.ukloni_saradnika(current_user.id, id, ime)
+    return redirect(url_for("detalji", id=id))
+
+
+@app.route("/beleska/<int:id>/istorija")
+@login_required
+def istorija(id):
+    beleska = nadji_dostupnu_belesku(id)
+    if beleska is None:
+        return redirect(url_for("pocetna"))
+
+    stavke = podaci.istorija_za_belesku(id) if hasattr(podaci, "istorija_za_belesku") else []
+    return render_template("istorija.html", beleska=beleska, stavke=stavke)
+
+
+@app.route("/beleska/<int:id>/istorija/<int:hid>/vrati", methods=["POST"])
+@login_required
+def vrati_na_verziju_ruta(id, hid):
+    beleska = nadji_dostupnu_belesku(id)
+    if beleska is None:
+        return redirect(url_for("pocetna"))
+
+    podaci.vrati_na_verziju(beleska["korisnicko_ime"], id, hid)
+    flash("Beleska je vracena na izabranu verziju.", "info")
+    return redirect(url_for("detalji", id=id))
+
+
+# ---------- Podzadaci (checklist unutar beleske) ----------
+# Ciste JSON rute (kao /board/kategorija i /premesti) - checklist je uvek
+# JS-voden, nema smisla za formu-bez-JS fallback kao kod toggle/obrisi.
+
+@app.route("/beleska/<int:id>/podzadaci", methods=["POST"])
+@login_required
+def dodaj_podzadatak_ruta(id):
+    telo = request.get_json(silent=True) or {}
+    tekst = (telo.get("tekst") or "").strip()
+    if not tekst:
+        return jsonify({"greska": "Tekst ne moze biti prazan."}), 400
+
+    beleska = nadji_dostupnu_belesku(id)
+    if beleska is None:
+        return jsonify({"greska": "Beleska ne postoji."}), 404
+
+    novi = podaci.dodaj_podzadatak(beleska["korisnicko_ime"], id, tekst)
+    if novi is None:
+        return jsonify({"greska": "Beleska ne postoji."}), 404
+    return jsonify(novi)
+
+
+@app.route("/podzadatak/<int:id>/toggle", methods=["POST"])
+@login_required
+def toggle_podzadatak_ruta(id):
+    novi_status = podaci.toggle_podzadatak(current_user.id, id)
+    if novi_status is None:
+        return jsonify({"greska": "Podzadatak ne postoji."}), 404
+    return jsonify({"uradjeno": novi_status})
+
+
+@app.route("/podzadatak/<int:id>/obrisi", methods=["POST"])
+@login_required
+def obrisi_podzadatak_ruta(id):
+    obrisano = podaci.obrisi_podzadatak(current_user.id, id)
+    return jsonify({"obrisano": obrisano})
 
 
 @app.route("/board")
@@ -314,6 +501,60 @@ def premesti(id):
 
     nova = podaci.premesti_belesku(current_user.id, id, nova_kategorija)
     return jsonify({"kategorija": nova})
+
+
+@app.route("/kalendar")
+@login_required
+def kalendar():
+    # ?mesec=YYYY-MM, podrazumevano trenutni mesec.
+    mesec_param = request.args.get("mesec", "")
+    try:
+        godina, mesec = (int(deo) for deo in mesec_param.split("-"))
+        prvi_u_mesecu = datetime(godina, mesec, 1)
+    except (ValueError, TypeError):
+        danas = datetime.now()
+        prvi_u_mesecu = datetime(danas.year, danas.month, 1)
+
+    prethodni_mesec = (prvi_u_mesecu.replace(day=1) - timedelta(days=1)).strftime("%Y-%m")
+    if prvi_u_mesecu.month == 12:
+        sledeci_mesec = prvi_u_mesecu.replace(year=prvi_u_mesecu.year + 1, month=1).strftime("%Y-%m")
+    else:
+        sledeci_mesec = prvi_u_mesecu.replace(month=prvi_u_mesecu.month + 1).strftime("%Y-%m")
+
+    beleske = podaci.sve_beleske(current_user.id)
+    beleske_po_danu = {}
+    for b in beleske:
+        if not b["rok"]:
+            continue
+        dan = b["rok"][:10]
+        beleske_po_danu.setdefault(dan, []).append(b)
+
+    sada = datetime.now().isoformat(timespec="minutes")
+    danasnji_dan = datetime.now().date().isoformat()
+
+    kalendar_meseca = calendar.Calendar(firstweekday=0)
+    nedelje = []
+    for nedelja in kalendar_meseca.monthdatescalendar(prvi_u_mesecu.year, prvi_u_mesecu.month):
+        nedelje.append([
+            {
+                "datum": dan,
+                "iso": dan.isoformat(),
+                "u_mesecu": dan.month == prvi_u_mesecu.month,
+                "danas": dan.isoformat() == danasnji_dan,
+                "beleske": beleske_po_danu.get(dan.isoformat(), []),
+            }
+            for dan in nedelja
+        ])
+
+    return render_template(
+        "kalendar.html",
+        nedelje=nedelje,
+        naziv_meseca=f"{SRPSKI_MESECI[prvi_u_mesecu.month - 1]} {prvi_u_mesecu.year}.",
+        mesec_param=prvi_u_mesecu.strftime("%Y-%m"),
+        prethodni_mesec=prethodni_mesec,
+        sledeci_mesec=sledeci_mesec,
+        sada=sada,
+    )
 
 
 @app.route("/statistika")
@@ -380,6 +621,118 @@ def service_worker():
 @login_required
 def api_beleske():
     return jsonify(podaci.sve_beleske(current_user.id))
+
+
+# ---------- Web Push podsetnici (prava push notifikacija) ----------
+# Zamenjuje stari 60s-polling pristup (setInterval + sessionStorage u
+# app.js) - ovde server SAM salje notifikaciju preko push servisa
+# (Chrome/Edge/Firefox), pa stize i kad tab nije otvoren. I dalje zahteva da
+# je browser pokrenut negde u pozadini (OS mora da ima taj proces zivim) -
+# to je granica same Web Push tehnologije, ne nacina implementacije.
+
+@app.route("/api/push/javni-kljuc")
+@login_required
+def push_javni_kljuc():
+    javni = os.environ.get("VAPID_PUBLIC_KEY")
+    if not javni:
+        return jsonify({"greska": "Push notifikacije nisu podesene (nedostaje VAPID_PUBLIC_KEY)."}), 503
+    return jsonify({"kljuc": javni})
+
+
+@app.route("/api/push/pretplata", methods=["POST"])
+@login_required
+def push_pretplata():
+    if not hasattr(podaci, "sacuvaj_pretplatu"):
+        return jsonify({"greska": "Push notifikacije nisu podrzane na ovom skladistu podataka."}), 503
+
+    telo = request.get_json(silent=True) or {}
+    endpoint = telo.get("endpoint")
+    kljucevi = telo.get("keys") or {}
+    if not endpoint or not kljucevi.get("p256dh") or not kljucevi.get("auth"):
+        return jsonify({"greska": "Nepotpuna pretplata."}), 400
+
+    podaci.sacuvaj_pretplatu(current_user.id, endpoint, kljucevi["p256dh"], kljucevi["auth"])
+    return jsonify({"ok": True})
+
+
+@app.route("/api/push/pretplata", methods=["DELETE"])
+@login_required
+def obrisi_push_pretplatu_ruta():
+    telo = request.get_json(silent=True) or {}
+    endpoint = telo.get("endpoint")
+    if endpoint and hasattr(podaci, "obrisi_pretplatu"):
+        podaci.obrisi_pretplatu(endpoint)
+    return jsonify({"ok": True})
+
+
+def posalji_podsetnike_ako_treba():
+    # Pozadinska nit (dole) ovo zove svakih 60s. Vraca se rano ako push nije
+    # podesen - nema smisla da se svaki minut ponavlja ista provera env vars.
+    if not hasattr(podaci, "beleske_za_podsetnik"):
+        return
+    javni = os.environ.get("VAPID_PUBLIC_KEY")
+    privatni = os.environ.get("VAPID_PRIVATE_KEY")
+    email = os.environ.get("VAPID_KONTAKT_EMAIL")
+    if not (javni and privatni and email):
+        return
+
+    for beleska in podaci.beleske_za_podsetnik():
+        for pretplata in podaci.pretplate_za(beleska["korisnicko_ime"]):
+            try:
+                webpush(
+                    subscription_info={
+                        "endpoint": pretplata["endpoint"],
+                        "keys": {"p256dh": pretplata["p256dh"], "auth": pretplata["auth"]},
+                    },
+                    data=json.dumps({
+                        "naslov": "Rok je stigao",
+                        "telo": beleska["naslov"],
+                        "id": beleska["id"],
+                    }),
+                    vapid_private_key=privatni,
+                    vapid_claims={"sub": f"mailto:{email}"},
+                )
+            except WebPushException as e:
+                # 404/410 = push servis kaze da ta pretplata vise ne postoji
+                # (korisnik je npr. obrisao/blokirao notifikacije) - obrisi je,
+                # inace bismo je zauvek pokusavali uzalud svakih 60s.
+                kod = e.response.status_code if e.response is not None else None
+                if kod in (404, 410):
+                    podaci.obrisi_pretplatu(pretplata["endpoint"])
+            except Exception:
+                # Mrezne greske (DNS, timeout...) NE stizu kao WebPushException
+                # nego kao obicna requests greska - uhvati ih ovde, po pretplati,
+                # da jedna neuspela ne prekine slanje ostalima u istom krugu.
+                pass
+        podaci.oznaci_podsetnik_poslat(beleska["id"])
+
+
+def _petlja_podsetnika():
+    # Pascal nema ekvivalent - ovo je "pozadinski program" koji radi paralelno
+    # sa glavnim (kao dva programa istovremeno), ne blokira obradu zahteva.
+    while True:
+        try:
+            posalji_podsetnike_ako_treba()
+        except Exception:
+            pass
+        time.sleep(60)
+
+
+def _treba_pokrenuti_pozadinsku_nit():
+    # Bez sve tri VAPID env varijable nema sta da se salje - ne pokrecemo nit
+    # uzalud (isti duh kao AI asistent koji se ne aktivira bez API kljuca).
+    if not (os.environ.get("VAPID_PUBLIC_KEY") and os.environ.get("VAPID_PRIVATE_KEY")
+            and os.environ.get("VAPID_KONTAKT_EMAIL")):
+        return False
+    # Flask-ov reloader (debug=True) pokrece SKRIPTU dvaput - jednom kao
+    # "roditelj" koji samo gleda fajlove, jednom kao pravo dete koje stvarno
+    # servira zahteve (ono ima WERKZEUG_RUN_MAIN=true). __name__ != "__main__"
+    # pokriva gunicorn (koji modul samo uveze, nikad ne pokrene "kao skriptu").
+    return os.environ.get("WERKZEUG_RUN_MAIN") == "true" or __name__ != "__main__"
+
+
+if _treba_pokrenuti_pozadinsku_nit():
+    threading.Thread(target=_petlja_podsetnika, daemon=True).start()
 
 
 # ---------- AI asistent ----------

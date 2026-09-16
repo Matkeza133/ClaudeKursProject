@@ -29,6 +29,7 @@
             {% if current_user.is_authenticated %}
                 <span class="ko-je-prijavljen">{{ current_user.id }}</span>
                 <a href="{{ url_for('board') }}">Board</a>
+                <a href="{{ url_for('kalendar') }}">Kalendar</a>
                 <a href="{{ url_for('statistika') }}">Statistika</a>
                 <button type="button" id="ai-otvori-dugme">AI asistent</button>
                 <a href="{{ url_for('logout') }}">Odjava</a>

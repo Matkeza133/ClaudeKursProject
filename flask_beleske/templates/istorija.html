@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+
+{% block naslov %}Istorija - {{ beleska.naslov }}{% endblock %}
+
+{% block sadrzaj %}
+    <a href="{{ url_for('detalji', id=beleska.id) }}" class="nazad">&larr; Nazad na belesku</a>
+
+    <h1>Istorija izmena</h1>
+
+    {% if stavke %}
+        <ul class="istorija-lista">
+            {% for s in stavke %}
+                <li class="panel istorija-stavka">
+                    <div class="istorija-zaglavlje">
+                        <span class="istorija-ko">{{ s.korisnicko_ime }}</span>
+                        <span class="datum">{{ s.vreme.replace("T", " ") }}</span>
+                    </div>
+                    <div class="istorija-polja">
+                        <p><strong>Naslov:</strong> {{ s.naslov }}</p>
+                        {% if s.opis %}<p><strong>Opis:</strong> {{ s.opis }}</p>{% endif %}
+                        {% if s.kategorija %}<p><strong>Kategorija:</strong> {{ s.kategorija }}</p>{% endif %}
+                        {% if s.rok %}<p><strong>Rok:</strong> {{ s.rok.replace("T", " ") }}</p>{% endif %}
+                    </div>
+                    <form action="{{ url_for('vrati_na_verziju_ruta', id=beleska.id, hid=s.id) }}" method="post">
+                        <button type="submit" class="izmeni">Vrati na ovu verziju</button>
+                    </form>
+                </li>
+            {% endfor %}
+        </ul>
+    {% else %}
+        <p class="prazno">Ova beleska jos nije menjana - nema sacuvanih verzija.</p>
+    {% endif %}
+{% endblock %}

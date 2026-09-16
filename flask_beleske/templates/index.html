@@ -14,6 +14,15 @@
                 <input type="text" name="kategorija" placeholder="Kategorija (opciono)" class="kategorija-unos">
                 <input type="datetime-local" name="rok" class="rok-unos" title="Rok (opciono)">
             </div>
+            <div class="forma-red">
+                <input type="text" name="tagovi" placeholder="Tagovi, odvojeni zarezom (opciono)" class="tagovi-unos">
+                <select name="ponavljanje" class="ponavljanje-izbor" title="Ponavljanje (opciono)">
+                    <option value="">Ne ponavlja se</option>
+                    <option value="dnevno">Dnevno</option>
+                    <option value="nedeljno">Nedeljno</option>
+                    <option value="mesecno">Mesecno</option>
+                </select>
+            </div>
             <button type="submit">Dodaj</button>
         </form>
     </div>
@@ -43,6 +52,15 @@
             </div>
         {% endif %}
 
+        {% if tagovi %}
+            <div class="tabovi tabovi-tagovi" id="tabovi-tagovi">
+                <button type="button" class="tab aktivan" data-vrednost="sve">Svi tagovi</button>
+                {% for t in tagovi %}
+                    <button type="button" class="tab" data-vrednost="{{ t|lower }}">#{{ t }}</button>
+                {% endfor %}
+            </div>
+        {% endif %}
+
         <div class="pretraga-wrap">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <circle cx="11" cy="11" r="7"></circle>
@@ -57,7 +75,8 @@
                     data-id="{{ b.id }}"
                     data-status="{{ 'uradjeno' if b.uradjeno else 'aktivna' }}"
                     data-kategorija="{{ b.kategorija|lower }}"
-                    data-tekst="{{ (b.naslov ~ ' ' ~ b.opis ~ ' ' ~ b.kategorija)|lower }}">
+                    data-tagovi="{{ (b.tagovi|default([]))|join(' ')|lower }}"
+                    data-tekst="{{ (b.naslov ~ ' ' ~ b.opis ~ ' ' ~ b.kategorija ~ ' ' ~ (b.tagovi|default([]))|join(' '))|lower }}">
                     <form action="{{ url_for('toggle', id=b.id) }}" method="post" class="toggle-forma">
                         <input type="checkbox" {{ 'checked' if b.uradjeno else '' }}>
                     </form>
@@ -65,7 +84,12 @@
                     <span class="sadrzaj-beleske">
                         <a href="{{ url_for('detalji', id=b.id) }}" class="naslov-beleske">{{ b.naslov }}</a>
                         <span class="meta">
+                            {% if not b.da_li_je_vlasnik|default(true) %}<span class="bedz bedz-deljeno">Deljeno od {{ b.vlasnik }}</span>{% endif %}
                             {% if b.kategorija %}<span class="bedz">{{ b.kategorija }}</span>{% endif %}
+                            {% for t in b.tagovi|default([]) %}<span class="bedz bedz-tag">#{{ t }}</span>{% endfor %}
+                            {% if (b.broj_podzadataka|default(0)) > 0 %}
+                                <span class="bedz bedz-podzadaci">{{ b.broj_uradjeno_podzadataka }}/{{ b.broj_podzadataka }}</span>
+                            {% endif %}
                             <span class="datum">{{ b.datum.replace("T", " ") }}</span>
                             {% if b.rok %}
                                 <span class="rok-bedz {{ 'hitno' if not b.uradjeno and b.rok < sada else '' }}">Rok: {{ b.rok.replace("T", " ") }}</span>
@@ -75,9 +99,11 @@
 
                     <span class="akcije">
                         <a href="{{ url_for('izmeni', id=b.id) }}" class="izmeni">Izmeni</a>
-                        <form action="{{ url_for('obrisi', id=b.id) }}" method="post" class="obrisi-forma">
-                            <button type="submit" class="obrisi">Obrisi</button>
-                        </form>
+                        {% if b.da_li_je_vlasnik|default(true) %}
+                            <form action="{{ url_for('obrisi', id=b.id) }}" method="post" class="obrisi-forma">
+                                <button type="submit" class="obrisi">Obrisi</button>
+                            </form>
+                        {% endif %}
                     </span>
                 </li>
             {% endfor %}

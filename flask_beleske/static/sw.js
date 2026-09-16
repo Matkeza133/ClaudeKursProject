@@ -65,3 +65,40 @@ self.addEventListener("fetch", (event) => {
         );
     }
 });
+
+// ---------- Web Push: server salje "push" dogadjaj cak i kad tab nije otvoren ----------
+// Ovo je razlog zasto service worker uopste postoji za push - obican JS na
+// stranici ne moze nista da uradi dok je tab zatvoren, service worker moze.
+
+self.addEventListener("push", (event) => {
+    let podaci = { naslov: "Rok je stigao", telo: "", id: null };
+    try {
+        podaci = event.data.json();
+    } catch (e) {
+        // ako telo poruke nije validan JSON, ostaju podrazumevane vrednosti
+    }
+
+    event.waitUntil(
+        self.registration.showNotification(podaci.naslov || "Rok je stigao", {
+            body: podaci.telo || "",
+            icon: "/static/icons/icon-192.png",
+            tag: podaci.id ? "rok-" + podaci.id : undefined,
+            data: { id: podaci.id },
+        })
+    );
+});
+
+self.addEventListener("notificationclick", (event) => {
+    event.notification.close();
+    const id = event.notification.data && event.notification.data.id;
+    const putanja = id ? `/beleska/${id}` : "/";
+
+    event.waitUntil(
+        clients.matchAll({ type: "window", includeUncontrolled: true }).then((listaKlijenata) => {
+            for (const klijent of listaKlijenata) {
+                if (klijent.url.includes(putanja) && "focus" in klijent) return klijent.focus();
+            }
+            if (clients.openWindow) return clients.openWindow(putanja);
+        })
+    );
+});

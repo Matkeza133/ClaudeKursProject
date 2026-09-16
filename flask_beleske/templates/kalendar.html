@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+
+{% block naslov %}Kalendar{% endblock %}
+
+{% block sadrzaj %}
+    <h1>Kalendar</h1>
+
+    <div class="kalendar-zaglavlje">
+        <a href="{{ url_for('kalendar', mesec=prethodni_mesec) }}" class="kalendar-nav" aria-label="Prethodni mesec">&larr;</a>
+        <span class="kalendar-mesec-naziv">{{ naziv_meseca }}</span>
+        <a href="{{ url_for('kalendar', mesec=sledeci_mesec) }}" class="kalendar-nav" aria-label="Sledeci mesec">&rarr;</a>
+    </div>
+
+    <div class="kalendar-dani-nedelje">
+        <span>Pon</span><span>Uto</span><span>Sre</span><span>Cet</span><span>Pet</span><span>Sub</span><span>Ned</span>
+    </div>
+
+    <div class="kalendar-mreza">
+        {% for nedelja in nedelje %}
+            {% for dan in nedelja %}
+                <div class="kalendar-dan {{ '' if dan.u_mesecu else 'kalendar-dan-van' }} {{ 'kalendar-dan-danas' if dan.danas else '' }}">
+                    <span class="kalendar-dan-broj">{{ dan.datum.day }}</span>
+                    {% if dan.beleske %}
+                        <ul class="kalendar-dan-lista">
+                            {% for b in dan.beleske %}
+                                <li>
+                                    <a href="{{ url_for('detalji', id=b.id) }}"
+                                       class="kalendar-stavka {{ 'uradjeno' if b.uradjeno else '' }} {{ 'hitno' if not b.uradjeno and b.rok < sada else '' }}">
+                                        {{ b.naslov }}
+                                    </a>
+                                </li>
+                            {% endfor %}
+                        </ul>
+                    {% endif %}
+                </div>
+            {% endfor %}
+        {% endfor %}
+    </div>
+{% endblock %}

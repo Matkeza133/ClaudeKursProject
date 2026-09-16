@@ -9,6 +9,11 @@
 # prepisuje pri SVAKOJ izmeni, pa dva istovremena zahteva teorijski mogu
 # da se pobiju i pokvare podatke. Za licnu upotrebu jednog-dva korisnika
 # to je redak rizik, ali SQLite ga resava iz korena.
+#
+# ZAMRZNUTO na trenutnom fju-setu: nove funkcije (tagovi, podzadaci,
+# kalendar/recurring, saradnja...) idu SAMO u podaci_sqlite.py. Ovaj fajl
+# ostaje kao rezerva za stari, jednostavniji feature-set - ne runtime guard,
+# samo dogovor da se ovde vise nista ne dodaje.
 
 import json
 import os
@@ -84,10 +89,21 @@ def nadji_belesku(korisnicko_ime, id_):
     korisnik = _ucitaj()["korisnici"].get(korisnicko_ime)
     if not korisnik:
         return None
-    return _nadji(korisnik["beleske"], id_)
+    beleska = _nadji(korisnik["beleske"], id_)
+    if beleska is None:
+        return None
+    # Kopija (ne izmeni original) - dodaje "korisnicko_ime" da oblik recnika
+    # odgovara podaci_sqlite.py (app.py ga cita bez obzira na backend, npr.
+    # za je_vlasnik proveru), iako ovde nema pravu saradnju.
+    beleska = dict(beleska)
+    beleska.setdefault("korisnicko_ime", korisnicko_ime)
+    return beleska
 
 
-def dodaj_belesku(korisnicko_ime, naslov, opis, kategorija, rok):
+def dodaj_belesku(korisnicko_ime, naslov, opis, kategorija, rok, ponavljanje=None):
+    # ponavljanje se prima ali NE cuva - ponavljajuci zadaci su sqlite-only
+    # feature (vidi napomenu na vrhu fajla); ovo je samo da app.py moze da
+    # zove istu funkciju bez obzira na aktivni backend, bez if-ova u ruti.
     podaci = _ucitaj()
     nova = {
         "id": podaci["sledeci_id"],
@@ -107,7 +123,8 @@ def dodaj_belesku(korisnicko_ime, naslov, opis, kategorija, rok):
     return nova
 
 
-def izmeni_belesku(korisnicko_ime, id_, naslov, opis, kategorija, rok):
+def izmeni_belesku(korisnicko_ime, id_, naslov, opis, kategorija, rok, ponavljanje=None, editor=None):
+    # ponavljanje/editor se prime ali ignorisu - vidi komentar u dodaj_belesku.
     podaci = _ucitaj()
     korisnik = podaci["korisnici"].get(korisnicko_ime)
     beleska = _nadji(korisnik["beleske"], id_) if korisnik else None

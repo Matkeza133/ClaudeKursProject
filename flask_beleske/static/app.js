@@ -3,6 +3,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const pretragaUnos = document.getElementById("pretraga");
     const tabStatus = document.getElementById("tabovi-status");
     const tabKategorija = document.getElementById("tabovi-kategorije");
+    const tabTag = document.getElementById("tabovi-tagovi");
     const nemaRezultata = document.getElementById("nema-rezultata");
     const progresIspuna = document.getElementById("progres-ispuna");
     const progresTekst = document.getElementById("progres-tekst-vrednost");
@@ -10,6 +11,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     let stanjeStatus = "sve";
     let stanjeKategorija = "sve";
+    let stanjeTag = "sve";
 
     // ---------- Pretraga + tabovi (status/kategorija) rade zajedno ----------
     // Pascal: umesto jedne petlje koja gasi/pali <li>, sad tri uslova moraju
@@ -24,12 +26,14 @@ document.addEventListener("DOMContentLoaded", () => {
             const tekst = stavka.dataset.tekst || "";
             const status = stavka.dataset.status || "";
             const kategorija = stavka.dataset.kategorija || "";
+            const tagovi = (stavka.dataset.tagovi || "").split(" ");
 
             const poklapaTekst = tekst.includes(upit);
             const poklapaStatus = stanjeStatus === "sve" || status === stanjeStatus;
             const poklapaKategoriju = stanjeKategorija === "sve" || kategorija === stanjeKategorija;
+            const poklapaTag = stanjeTag === "sve" || tagovi.includes(stanjeTag);
 
-            const prikazi = poklapaTekst && poklapaStatus && poklapaKategoriju;
+            const prikazi = poklapaTekst && poklapaStatus && poklapaKategoriju && poklapaTag;
             stavka.style.display = prikazi ? "" : "none";
             if (prikazi) vidljivo++;
         });
@@ -64,6 +68,16 @@ document.addEventListener("DOMContentLoaded", () => {
             if (!dugme) return;
             stanjeKategorija = dugme.dataset.vrednost;
             postaviAktivanTab(tabKategorija, dugme);
+            primeniFiltere();
+        });
+    }
+
+    if (tabTag) {
+        tabTag.addEventListener("click", (e) => {
+            const dugme = e.target.closest(".tab");
+            if (!dugme) return;
+            stanjeTag = dugme.dataset.vrednost;
+            postaviAktivanTab(tabTag, dugme);
             primeniFiltere();
         });
     }
@@ -301,6 +315,102 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
+    // ---------- Podzadaci (checklist unutar beleske) ----------
+
+    const podzadaciBlok = document.getElementById("podzadaci-blok");
+    if (podzadaciBlok) {
+        const podzadaciLista = document.getElementById("podzadaci-lista");
+        const podzadatakForma = document.getElementById("podzadatak-forma");
+        const belaskaId = podzadaciBlok.dataset.beleskaId;
+
+        function zakaciListenereNaPodzadatak(red) {
+            const checkbox = red.querySelector(".podzadatak-checkbox");
+            checkbox.addEventListener("change", async () => {
+                try {
+                    const odgovor = await fetch(`/podzadatak/${red.dataset.id}/toggle`, {
+                        method: "POST",
+                        headers: { "X-Requested-With": "XMLHttpRequest" },
+                    });
+                    if (!odgovor.ok) throw new Error("toggle nije uspeo");
+                    const podaci = await odgovor.json();
+                    red.classList.toggle("uradjeno", podaci.uradjeno);
+                } catch (e) {
+                    checkbox.checked = !checkbox.checked;
+                    prikaziToast("Ne mogu da se povezem sa serverom.");
+                }
+            });
+
+            const obrisiDugme = red.querySelector(".podzadatak-obrisi");
+            obrisiDugme.addEventListener("click", async () => {
+                try {
+                    await fetch(`/podzadatak/${red.dataset.id}/obrisi`, {
+                        method: "POST",
+                        headers: { "X-Requested-With": "XMLHttpRequest" },
+                    });
+                    red.remove();
+                } catch (e) {
+                    prikaziToast("Ne mogu da se povezem sa serverom.");
+                }
+            });
+        }
+
+        function napraviPodzadatakElement(p) {
+            const red = document.createElement("li");
+            red.className = "podzadatak-red";
+            red.dataset.id = p.id;
+
+            const checkbox = document.createElement("input");
+            checkbox.type = "checkbox";
+            checkbox.className = "podzadatak-checkbox";
+
+            const tekst = document.createElement("span");
+            tekst.className = "podzadatak-tekst";
+            tekst.textContent = p.tekst;
+
+            const obrisiDugme = document.createElement("button");
+            obrisiDugme.type = "button";
+            obrisiDugme.className = "podzadatak-obrisi";
+            obrisiDugme.title = "Obrisi podzadatak";
+            obrisiDugme.textContent = "×";
+
+            red.appendChild(checkbox);
+            red.appendChild(tekst);
+            red.appendChild(obrisiDugme);
+            return red;
+        }
+
+        podzadaciLista.querySelectorAll(".podzadatak-red").forEach(zakaciListenereNaPodzadatak);
+
+        podzadatakForma.addEventListener("submit", async (e) => {
+            e.preventDefault();
+            const unos = podzadatakForma.querySelector(".podzadatak-unos");
+            const tekst = unos.value.trim();
+            if (!tekst) return;
+
+            try {
+                const odgovor = await fetch(`/beleska/${belaskaId}/podzadaci`, {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "X-Requested-With": "XMLHttpRequest",
+                    },
+                    body: JSON.stringify({ tekst }),
+                });
+                const podaciOdg = await odgovor.json();
+                if (!odgovor.ok) {
+                    prikaziToast(podaciOdg.greska || "Greska pri dodavanju podzadatka.");
+                    return;
+                }
+                const novi = napraviPodzadatakElement(podaciOdg);
+                podzadaciLista.appendChild(novi);
+                zakaciListenereNaPodzadatak(novi);
+                unos.value = "";
+            } catch (err) {
+                prikaziToast("Ne mogu da se povezem sa serverom.");
+            }
+        });
+    }
+
     // ---------- Board (Kanban): prevuci-i-pusti izmedju kolona ----------
 
     const boardRed = document.querySelector(".board-red");
@@ -530,51 +640,69 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
-    // ---------- Podsetnici: notifikacija kad rok beleske stigne ----------
-    // Radi samo dok je tab/app otvoren (ili nedavno otvoren, dok je service
-    // worker jos "ziv") - nije pravi push koji stize i kad je sajt zatvoren.
+    // ---------- Podsetnici: pravi Web Push (stize i kad tab nije otvoren) ----------
+    // Zamenjuje stari 60s-polling pristup - server sam salje notifikaciju
+    // preko push servisa. I dalje zahteva da je browser pokrenut negde u
+    // pozadini (granica same Web Push tehnologije, ne ove implementacije).
+
+    function base64UrlUBajtove(base64Url) {
+        const dopuna = "=".repeat((4 - (base64Url.length % 4)) % 4);
+        const base64 = (base64Url + dopuna).replace(/-/g, "+").replace(/_/g, "/");
+        const sirovo = atob(base64);
+        const bajtovi = new Uint8Array(sirovo.length);
+        for (let i = 0; i < sirovo.length; i++) bajtovi[i] = sirovo.charCodeAt(i);
+        return bajtovi;
+    }
 
     const podsetniciDugme = document.getElementById("podsetnici-dugme");
-    if (podsetniciDugme && "Notification" in window) {
-        function azurirajIzgledPodsetnika() {
-            const ukljuceno = localStorage.getItem("podsetnici") === "ukljuceno" && Notification.permission === "granted";
+    if (podsetniciDugme && "serviceWorker" in navigator && "PushManager" in window) {
+        function azurirajIzgledPodsetnika(ukljuceno) {
             podsetniciDugme.classList.toggle("ukljuceno", ukljuceno);
         }
 
-        async function proveriRokove() {
-            if (Notification.permission !== "granted") return;
-            try {
-                const odgovor = await fetch("/api/beleske");
-                if (!odgovor.ok) return;
-                const beleske = await odgovor.json();
-                const sada = Date.now();
+        async function trenutnoUkljuceno() {
+            const reg = await navigator.serviceWorker.ready;
+            const pretplata = await reg.pushManager.getSubscription();
+            return pretplata !== null;
+        }
 
-                let vecObavesteni = [];
-                try {
-                    vecObavesteni = JSON.parse(sessionStorage.getItem("obavesteni-rokovi") || "[]");
-                } catch (e) {}
-
-                for (const b of beleske) {
-                    if (!b.rok || b.uradjeno) continue;
-                    const vreme = new Date(b.rok).getTime();
-                    if (Number.isNaN(vreme) || vreme > sada || vecObavesteni.includes(b.id)) continue;
-
-                    const opcije = { body: b.naslov, icon: "/static/icons/icon-192.png", tag: "rok-" + b.id };
-                    const reg = await navigator.serviceWorker.getRegistration();
-                    if (reg) {
-                        reg.showNotification("Rok je stigao", opcije);
-                    } else {
-                        new Notification("Rok je stigao", opcije);
-                    }
-                    vecObavesteni.push(b.id);
-                }
-
-                try {
-                    sessionStorage.setItem("obavesteni-rokovi", JSON.stringify(vecObavesteni));
-                } catch (e) {}
-            } catch (e) {
-                // offline ili greska - probace ponovo na sledecoj proveri
+        async function ukljuciPodsetnike() {
+            const odgovorKljuc = await fetch("/api/push/javni-kljuc");
+            if (!odgovorKljuc.ok) {
+                const podaciOdg = await odgovorKljuc.json().catch(() => ({}));
+                prikaziToast(podaciOdg.greska || "Push notifikacije nisu podesene na serveru.");
+                return false;
             }
+            const { kljuc } = await odgovorKljuc.json();
+
+            const dozvola = await Notification.requestPermission();
+            if (dozvola !== "granted") return false;
+
+            const reg = await navigator.serviceWorker.ready;
+            const pretplata = await reg.pushManager.subscribe({
+                userVisibleOnly: true,
+                applicationServerKey: base64UrlUBajtove(kljuc),
+            });
+
+            await fetch("/api/push/pretplata", {
+                method: "POST",
+                headers: { "Content-Type": "application/json", "X-Requested-With": "XMLHttpRequest" },
+                body: JSON.stringify(pretplata.toJSON()),
+            });
+            return true;
+        }
+
+        async function iskljuciPodsetnike() {
+            const reg = await navigator.serviceWorker.ready;
+            const pretplata = await reg.pushManager.getSubscription();
+            if (!pretplata) return;
+            const endpoint = pretplata.endpoint;
+            await pretplata.unsubscribe();
+            await fetch("/api/push/pretplata", {
+                method: "DELETE",
+                headers: { "Content-Type": "application/json", "X-Requested-With": "XMLHttpRequest" },
+                body: JSON.stringify({ endpoint }),
+            });
         }
 
         podsetniciDugme.addEventListener("click", async () => {
@@ -582,31 +710,22 @@ document.addEventListener("DOMContentLoaded", () => {
                 prikaziToast("Notifikacije su blokirane u podesavanjima browsera - omoguci ih rucno da bi podsetnici radili.");
                 return;
             }
-            if (Notification.permission === "default") {
-                const dozvola = await Notification.requestPermission();
-                if (dozvola !== "granted") {
-                    azurirajIzgledPodsetnika();
-                    return;
-                }
-            }
-
-            const bilo_ukljuceno = localStorage.getItem("podsetnici") === "ukljuceno";
             try {
-                localStorage.setItem("podsetnici", bilo_ukljuceno ? "iskljuceno" : "ukljuceno");
-            } catch (e) {}
-            azurirajIzgledPodsetnika();
-
-            if (!bilo_ukljuceno) {
-                prikaziToast("Podsetnici ukljuceni - proverava rokove dok je app otvorena.");
-                proveriRokove();
+                if (await trenutnoUkljuceno()) {
+                    await iskljuciPodsetnike();
+                    azurirajIzgledPodsetnika(false);
+                    prikaziToast("Podsetnici iskljuceni.");
+                } else {
+                    const uspeh = await ukljuciPodsetnike();
+                    azurirajIzgledPodsetnika(uspeh);
+                    if (uspeh) prikaziToast("Podsetnici ukljuceni - stizu i kad tab nije otvoren.");
+                }
+            } catch (e) {
+                prikaziToast("Ne mogu da ukljucim podsetnike u ovom browseru.");
             }
         });
 
-        azurirajIzgledPodsetnika();
-        if (localStorage.getItem("podsetnici") === "ukljuceno" && Notification.permission === "granted") {
-            proveriRokove();
-            setInterval(proveriRokove, 60000);
-        }
+        trenutnoUkljuceno().then(azurirajIzgledPodsetnika);
     }
 
     // ---------- Tamna tema: izbor se pamti u localStorage (samo u ovom browseru). ----------

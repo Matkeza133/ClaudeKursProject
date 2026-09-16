@@ -800,6 +800,234 @@ h1.uradjeno {
     border-radius: 999px;
 }
 
+/* Tag bedz koristi zelenu da se vizuelno razlikuje od kategorije (primarna). */
+.bedz-tag {
+    background: color-mix(in srgb, var(--zelena) 16%, transparent);
+    color: var(--zelena);
+}
+
+.bedz-podzadaci {
+    background: var(--povrsina-2);
+    color: var(--tekst-slabiji);
+    border: 1px solid var(--ivica);
+}
+
+.bedz-deljeno {
+    background: var(--povrsina-2);
+    color: var(--tekst-slabiji);
+    border: 1px solid var(--ivica);
+    font-weight: 500;
+}
+
+/* ---------- Saradnici ---------- */
+
+.saradnici-blok {
+    background: var(--povrsina);
+    border: 1px solid var(--ivica);
+    border-radius: var(--radius);
+    padding: 1.1rem 1.25rem;
+    margin-bottom: 1.25rem;
+}
+
+.saradnici-lista {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 0.75rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+}
+
+.saradnici-lista li {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.3rem 0.1rem;
+    border-bottom: 1px solid var(--ivica);
+}
+
+.saradnici-lista li:last-child {
+    border-bottom: none;
+}
+
+.saradnik-ukloni {
+    border: none;
+    background: none;
+    color: var(--tekst-slabiji);
+    cursor: pointer;
+    font-size: 1.1rem;
+    line-height: 1;
+    padding: 0.2rem 0.4rem;
+}
+
+.saradnik-ukloni:hover {
+    color: var(--crvena);
+}
+
+.forma-saradnik {
+    display: flex;
+    gap: 0.6rem;
+}
+
+.forma-saradnik input {
+    flex: 1;
+    padding: 0.55rem 0.75rem;
+    border: 1px solid var(--ivica);
+    border-radius: var(--radius-sm);
+    font-size: 0.9rem;
+    font-family: inherit;
+    background: var(--povrsina-2);
+    color: var(--tekst);
+}
+
+.forma-saradnik input:focus {
+    outline: none;
+    border-color: var(--primarna);
+    background: var(--povrsina);
+    box-shadow: 0 0 0 3px var(--primarna-svetla);
+}
+
+.forma-saradnik button {
+    padding: 0.55rem 1rem;
+    border: none;
+    border-radius: var(--radius-sm);
+    background: var(--primarna-gradijent);
+    color: white;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+/* ---------- Istorija izmena ---------- */
+
+.istorija-lista {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.istorija-stavka {
+    margin-bottom: 0;
+}
+
+.istorija-zaglavlje {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 0.6rem;
+}
+
+.istorija-ko {
+    font-weight: 600;
+    font-size: 0.85rem;
+}
+
+.istorija-polja {
+    font-size: 0.85rem;
+    color: var(--tekst-slabiji);
+    margin-bottom: 0.75rem;
+}
+
+.istorija-polja p {
+    margin: 0.2rem 0;
+}
+
+.istorija-polja strong {
+    color: var(--tekst);
+}
+
+/* ---------- Podzadaci (checklist unutar beleske) ---------- */
+
+.podzadaci-blok {
+    background: var(--povrsina);
+    border: 1px solid var(--ivica);
+    border-radius: var(--radius);
+    padding: 1.1rem 1.25rem;
+    margin-bottom: 1.25rem;
+}
+
+.podzadaci-lista {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 0.75rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+}
+
+.podzadatak-red {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0.4rem 0.1rem;
+    border-bottom: 1px solid var(--ivica);
+}
+
+.podzadatak-red:last-child {
+    border-bottom: none;
+}
+
+.podzadatak-red.uradjeno .podzadatak-tekst {
+    text-decoration: line-through;
+    color: var(--tekst-slabiji);
+}
+
+.podzadatak-tekst {
+    flex: 1;
+}
+
+.podzadatak-obrisi {
+    border: none;
+    background: none;
+    color: var(--tekst-slabiji);
+    cursor: pointer;
+    font-size: 1.1rem;
+    line-height: 1;
+    padding: 0.2rem 0.4rem;
+}
+
+.podzadatak-obrisi:hover {
+    color: var(--crvena);
+}
+
+.forma-podzadatak {
+    display: flex;
+    gap: 0.6rem;
+}
+
+.forma-podzadatak input {
+    flex: 1;
+    padding: 0.55rem 0.75rem;
+    border: 1px solid var(--ivica);
+    border-radius: var(--radius-sm);
+    font-size: 0.9rem;
+    font-family: inherit;
+    background: var(--povrsina-2);
+    color: var(--tekst);
+}
+
+.forma-podzadatak input:focus {
+    outline: none;
+    border-color: var(--primarna);
+    background: var(--povrsina);
+    box-shadow: 0 0 0 3px var(--primarna-svetla);
+}
+
+.forma-podzadatak button {
+    padding: 0.55rem 1rem;
+    border: none;
+    border-radius: var(--radius-sm);
+    background: var(--primarna-gradijent);
+    color: white;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+}
+
 .datum {
     font-size: 0.75rem;
     color: var(--tekst-slabiji);
@@ -1469,6 +1697,142 @@ h1.uradjeno {
 .asistent-forma button:disabled {
     opacity: 0.6;
     cursor: not-allowed;
+}
+
+/* ---------- Kalendar ---------- */
+
+.ponavljanje-izbor {
+    flex: 0 0 160px;
+    padding: 0.6rem 0.7rem;
+    border: 1px solid var(--ivica);
+    border-radius: var(--radius-sm);
+    font-size: 0.9rem;
+    font-family: inherit;
+    background: var(--povrsina-2);
+    color: var(--tekst);
+}
+
+.ponavljanje-izbor:focus {
+    outline: none;
+    border-color: var(--primarna);
+    background: var(--povrsina);
+    box-shadow: 0 0 0 3px var(--primarna-svetla);
+}
+
+.kalendar-zaglavlje {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+    margin-bottom: 0.9rem;
+}
+
+.kalendar-mesec-naziv {
+    font-weight: 600;
+    font-size: 1rem;
+    min-width: 11rem;
+    text-align: center;
+}
+
+.kalendar-nav {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 2rem;
+    height: 2rem;
+    border-radius: 999px;
+    border: 1px solid var(--ivica);
+    background: var(--povrsina);
+    color: var(--tekst);
+    text-decoration: none;
+    font-weight: 600;
+    transition: border-color 0.15s, color 0.15s;
+}
+
+.kalendar-nav:hover {
+    border-color: var(--primarna);
+    color: var(--primarna);
+}
+
+.kalendar-dani-nedelje,
+.kalendar-mreza {
+    display: grid;
+    grid-template-columns: repeat(7, minmax(80px, 1fr));
+    gap: 0.4rem;
+}
+
+.kalendar-dani-nedelje {
+    margin-bottom: 0.4rem;
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: var(--tekst-slabiji);
+    text-align: center;
+    text-transform: uppercase;
+}
+
+.kalendar-mreza {
+    overflow-x: auto;
+}
+
+.kalendar-dan {
+    background: var(--povrsina);
+    border: 1px solid var(--ivica);
+    border-radius: var(--radius-sm);
+    padding: 0.35rem;
+    min-height: 5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.kalendar-dan-van {
+    background: var(--povrsina-2);
+    opacity: 0.55;
+}
+
+.kalendar-dan-danas {
+    border-color: var(--primarna);
+    box-shadow: 0 0 0 2px var(--primarna-svetla);
+}
+
+.kalendar-dan-broj {
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--tekst-slabiji);
+}
+
+.kalendar-dan-lista {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+}
+
+.kalendar-stavka {
+    display: block;
+    font-size: 0.7rem;
+    padding: 0.1rem 0.3rem;
+    border-radius: 6px;
+    background: var(--primarna-svetla);
+    color: var(--primarna);
+    text-decoration: none;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.kalendar-stavka.uradjeno {
+    background: var(--povrsina-2);
+    color: var(--tekst-slabiji);
+    text-decoration: line-through;
+}
+
+.kalendar-stavka.hitno {
+    background: var(--crvena-svetla);
+    color: var(--crvena);
+    font-weight: 600;
 }
 
 /* ---------- Footer ---------- */
