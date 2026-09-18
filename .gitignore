@@ -3,3 +3,5 @@ flask_beleske/data.json
 flask_beleske/beleske.db
 __pycache__/
 .pytest_cache/
+flask_beleske/flask_out.log
+flask_beleske/flask_err.log

@@ -628,6 +628,15 @@ h1.uradjeno {
     color: var(--tekst-slabiji);
 }
 
+.opis-blok {
+    background: var(--povrsina);
+    border: 1px solid var(--ivica);
+    border-radius: var(--radius);
+    padding: 1.1rem 1.25rem;
+    margin-top: 1.1rem;
+    margin-bottom: 1.25rem;
+}
+
 .opis-beleske {
     white-space: pre-wrap;
     overflow-wrap: anywhere;

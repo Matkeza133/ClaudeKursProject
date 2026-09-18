@@ -18,11 +18,14 @@
             {% endif %}
         </div>
 
-        {% if opis_html %}
-            <div class="opis-beleske markdown-sadrzaj">{{ opis_html|safe }}</div>
-        {% else %}
-            <p class="prazno">Ova beleska nema opis.</p>
-        {% endif %}
+        <div class="opis-blok">
+            <p class="panel-naslov">Opis</p>
+            {% if opis_html %}
+                <div class="opis-beleske markdown-sadrzaj">{{ opis_html|safe }}</div>
+            {% else %}
+                <p class="prazno">Ova beleska nema opis.</p>
+            {% endif %}
+        </div>
 
         <div class="podzadaci-blok" id="podzadaci-blok" data-beleska-id="{{ beleska.id }}">
             <p class="panel-naslov">Podzadaci</p>
